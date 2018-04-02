@@ -26,7 +26,6 @@ int isAlarmOn = 0;
 bool isBtnPush = false;
 bool writeDoorClose = false;
 
-String msgType = "";
 BlynkTimer timer;
 
 void setup() 
@@ -63,10 +62,8 @@ BLYNK_WRITE(V0)
   isAlarmOn = pinValue;
   if (pinValue == 0) {
     isBtnPush = true;
-    msgType = "Alarm Off";
   } else {
     isBtnPush = false;
-    msgType = "Alarm On";
   }
 }
 
@@ -95,27 +92,26 @@ void loop()
     isBtnPush = false;
     isDoorOpen = true;
     writeDoorClose = false;
-//    write_google_spreadsheet(); // write to google spreadsheet indicate door is open
-//    write_google_spreadsheet(); // write to google spreadsheet indicate alarm is on
+    write_google_spreadsheet("Door Open"); // write to google spreadsheet indicate door is open
+    write_google_spreadsheet("Alarm on"); // write to google spreadsheet indicate alarm is on
   } else if ((isAlarmOn == 0) && isBtnPush) { // alarm is disable by pressed btn
     Serial.println("Alarm is Disable by clicking btn");
     isBtnPush = false;
-    writeDoorClose = false;
-//    write_google_spreadsheet(); // write to google spreadsheet indicate alarm is disable
-  } else if ((isAlarmOn == 0) && proximity == LOW && !writeDoorClose) {
+    write_google_spreadsheet("Alarm Disable"); // write to google spreadsheet indicate alarm is disable
+  } else if (proximity == LOW && !writeDoorClose) {
     Serial.println("Door is close");
     isDoorOpen = false;
     writeDoorClose = true;
-//    write_google_spreadsheet(); //write to google spreadsheet indicate door is close
+    write_google_spreadsheet("Door close"); //write to google spreadsheet indicate door is close
   }
 }
 
 
-void write_google_spreadsheet()
+void write_google_spreadsheet(String msgType)
 {
    Serial.println("Writing to Google Spereadsheet");
+   String tembooInput = "[[\"100\",\"200\",\"" + msgType + "\"]]";
    TembooChoreo AppendValuesChoreo(client);
-
     // Invoke the Temboo client
     AppendValuesChoreo.begin();
 
@@ -124,13 +120,12 @@ void write_google_spreadsheet()
     AppendValuesChoreo.setAppKeyName(TEMBOO_APP_KEY_NAME);
     AppendValuesChoreo.setAppKey(TEMBOO_APP_KEY);
     
-    // Set Choreo inputs
-    AppendValuesChoreo.addInput("RefreshToken", "ya29.GluRBZ9-n5xa-A5bvVwxDPZ1KBgPiYQ4jXdRMKqvvbmFhs4Qdd9hhez2rRu-9lekuj-I2_Vp0kUWeUjQAZdgD-aYhDs-zGBGxE9Ig6BxYEwRiob7nOjO9EiJHXO5");
+  // Set Choreo inputs
+    AppendValuesChoreo.addInput("RefreshToken", "1/Wu7hLi2RMp6E6gKsB5qOh5sj2Q5NyHCh3y0VQsgSLqr_LVsyy-9kr4MIOueCz4pS");
     AppendValuesChoreo.addInput("ClientSecret", "jHHiccijDRRK8bcogn9nM2X-");
-    AppendValuesChoreo.addInput("Values", "[\n  [\n    \"100\",\n    \"200\",\n    \"" + msgType + "\"\n  ]\n]");
+    AppendValuesChoreo.addInput("Values", tembooInput);
     AppendValuesChoreo.addInput("ClientID", "127543262575-95jg7drogo3imjot646coolce8itfekt.apps.googleusercontent.com");
     AppendValuesChoreo.addInput("SpreadsheetID", "1CuJdEk3rzZfXyq80wv71wsQbxmpHC0seigQ9jKi2kmQ");
-
                                                  
     // Identify the Choreo to run
     AppendValuesChoreo.setChoreo("/Library/Google/Sheets/AppendValues");
