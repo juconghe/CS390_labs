@@ -27,11 +27,11 @@ char auth[] = "80a0eed50c01403983e52180020c0beb";
 
 // Your WiFi credentials.
 // Set password to "" for open networks.
-char ssid[] = "CS390N";
-char pass[] = "internetofthings";
+char ssid[] = "weihai";
+char pass[] = "weihaihenshuai";
 
 bool isDoorOpen = true;
-int isAlarmOn = 0;
+int isAlarmOn = false;
 bool isBtnPush = false;
 bool writeDoorClose = false;
 bool LEDOn = true;
@@ -55,7 +55,7 @@ void setup()
 
  //Tamboo Setup
   Serial.println();
-  WiFi.begin("CS390N", "internetofthings"); //connecting to the router Serial.print("Connecting");
+  WiFi.begin("weihai", "weihaihenshuai"); //connecting to the router Serial.print("Connecting");
   while (WiFi.status() != WL_CONNECTED)
   { 
     delay(500);
@@ -76,17 +76,17 @@ void setup()
 
 BLYNK_WRITE(V0)
 {
-  int pinValue = param.asInt();
   // You can also use:
   // String i = param.asStr();
   // double d = param.asDouble();
-  isAlarmOn = pinValue;
-  if (pinValue == 0) {
-    Blynk.virtualWrite(V1, "Alarm Off");
+  isAlarmOn = !isAlarmOn;
+  if (isAlarmOn) {
+    Blynk.virtualWrite(V1, "Alarm On");
+     write_google_spreadsheet("Alarm on");
     isBtnPush = true;
   } else {
-    Blynk.virtualWrite(V1, "Alarm On");
-    write_google_spreadsheet("Alarm on");
+    Blynk.virtualWrite(V1, "Alarm Off");
+    write_google_spreadsheet("Alarm Off");
     isBtnPush = false;
   }
 }
@@ -97,12 +97,12 @@ BLYNK_WRITE(V3) {
 
 void disable_alram() {
   isBtnPush = true;
-  isAlarmOn = 0;  
+  isAlarmOn = false;  
 }
 
 void blinkLED()
 {
-  if (isAlarmOn == 1) {
+  if (isAlarmOn) {
     if (LEDOn) {
       pixel.setPixelColor(0, pixel.Color(255, 0, 0));
       pixel.show();
@@ -126,7 +126,7 @@ void loop()
   int proximity = digitalRead(REED_PIN);
   if (!isDoorOpen && (proximity == HIGH)) { // door was close but open now
     Serial.println("Door is open, alarm is on");
-    isAlarmOn = 1;
+    isAlarmOn = true;
     isBtnPush = false;
     isDoorOpen = true;
     writeDoorClose = false;
@@ -135,7 +135,7 @@ void loop()
     Blynk.notify("Someone open the door!!!!");
     write_google_spreadsheet("Door Open"); // write to google spreadsheet indicate door is open
     write_google_spreadsheet("Alarm on"); // write to google spreadsheet indicate alarm is on
-  } else if ((isAlarmOn == 0) && isBtnPush) { // alarm is disable by pressed btn
+  } else if ((!isAlarmOn) && isBtnPush) { // alarm is disable by pressed btn
     Serial.println("Alarm is Disable by clicking btn");
     isBtnPush = false;
     Blynk.virtualWrite(V1, "Alarm Off");
@@ -148,7 +148,7 @@ void loop()
     write_google_spreadsheet("Door close"); //write to google spreadsheet indicate door is close
   }
 
-  if (isAlarmOn == 1) {
+  if (isAlarmOn) {
       analogWrite(PIN_BUZZER, 512);
       analogWriteFreq(138);
   }else {
