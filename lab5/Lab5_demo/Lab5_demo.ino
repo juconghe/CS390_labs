@@ -35,6 +35,7 @@ int isAlarmOn = false;
 bool isBtnPush = false;
 bool writeDoorClose = false;
 bool LEDOn = true;
+bool systemOn = true;
 
 BlynkTimer timer;
 
@@ -79,25 +80,41 @@ BLYNK_WRITE(V0)
   // You can also use:
   // String i = param.asStr();
   // double d = param.asDouble();
-  isAlarmOn = !isAlarmOn;
-  if (isAlarmOn) {
-    Blynk.virtualWrite(V1, "Alarm On");
-     write_google_spreadsheet("Alarm on");
-    isBtnPush = true;
-  } else {
-    Blynk.virtualWrite(V1, "Alarm Off");
-    write_google_spreadsheet("Alarm Off");
-    isBtnPush = false;
+  if (systemOn) {
+      isAlarmOn = !isAlarmOn;
+    if (isAlarmOn) {
+      Blynk.virtualWrite(V1, "Alarm On");
+      write_google_spreadsheet("Alarm on");
+      isBtnPush = true;
+     } else {
+      Blynk.virtualWrite(V1, "Alarm Off");
+      write_google_spreadsheet("Alarm Off");
+      isBtnPush = false;
+    }
   }
 }
 
 BLYNK_WRITE(V3) {
-  write_google_spreadsheet("Called Police");
+  if (systemOn) {
+    write_google_spreadsheet("Called Police");
+  }
+}
+
+BLYNK_WRITE(V4) {
+  systemOn = !systemOn;
+  if (systemOn) {
+    write_google_spreadsheet("Turn On the System");
+  } else {
+    isAlarmOn = false;
+    write_google_spreadsheet("Turn Off the System");
+  }
 }
 
 void disable_alram() {
-  isBtnPush = true;
-  isAlarmOn = false;  
+  if (systemOn) {
+    isBtnPush = true;
+    isAlarmOn = false;
+  }  
 }
 
 void blinkLED()
@@ -123,30 +140,35 @@ void loop()
 {
   Blynk.run();
   timer.run();
-  int proximity = digitalRead(REED_PIN);
-  if (!isDoorOpen && (proximity == HIGH)) { // door was close but open now
-    Serial.println("Door is open, alarm is on");
-    isAlarmOn = true;
-    isBtnPush = false;
-    isDoorOpen = true;
-    writeDoorClose = false;
-    Blynk.virtualWrite(V1, "Alarm On");
-    Blynk.virtualWrite(V2, "Door Open");
-    Blynk.notify("Someone open the door!!!!");
-    write_google_spreadsheet("Door Open"); // write to google spreadsheet indicate door is open
-    write_google_spreadsheet("Alarm on"); // write to google spreadsheet indicate alarm is on
-  } else if ((!isAlarmOn) && isBtnPush) { // alarm is disable by pressed btn
-    Serial.println("Alarm is Disable by clicking btn");
-    isBtnPush = false;
-    Blynk.virtualWrite(V1, "Alarm Off");
-    write_google_spreadsheet("Alarm Disable"); // write to google spreadsheet indicate alarm is disable
-  } else if (proximity == LOW && !writeDoorClose) {
-    Serial.println("Door is close");
-    isDoorOpen = false;
-    writeDoorClose = true;
-    Blynk.virtualWrite(V2, "Door Close");
-    write_google_spreadsheet("Door close"); //write to google spreadsheet indicate door is close
-  }
+    int proximity = digitalRead(REED_PIN);
+    if (!isDoorOpen && (proximity == HIGH)) { // door was close but open now
+      Serial.println("Door is open, alarm is on");
+      Blynk.virtualWrite(V1, "Alarm On");
+      Blynk.virtualWrite(V2, "Door Open");
+      if (systemOn) {
+         isAlarmOn = true;
+         isBtnPush = false;
+        Blynk.notify("Someone open the door!!!!");
+        write_google_spreadsheet("Door Open"); // write to google spreadsheet indicate door is open
+        write_google_spreadsheet("Alarm on"); // write to google spreadsheet indicate alarm is on
+      }
+      isDoorOpen = true;
+      writeDoorClose = false;
+    } else if ((!isAlarmOn) && isBtnPush) { // alarm is disable by pressed btn
+      Serial.println("Alarm is Disable by clicking btn");
+      Blynk.virtualWrite(V1, "Alarm Off");
+      write_google_spreadsheet("RESET Button Pressed"); // write to google spreadsheet indicate alarm is disable
+      isBtnPush = false;
+    } else if (proximity == LOW && !writeDoorClose) {
+      Serial.println("Door is close");
+      Blynk.virtualWrite(V2, "Door Close");
+      if (systemOn) {
+        isBtnPush = false;
+        write_google_spreadsheet("Door close"); //write to google spreadsheet indicate door is close
+      }
+      writeDoorClose = true;
+      isDoorOpen = false;
+    }
 
   if (isAlarmOn) {
       analogWrite(PIN_BUZZER, 512);
